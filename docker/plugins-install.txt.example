@@ -1,0 +1,18 @@
+# OpenClaw Runtime Plugin Installation
+#
+# Place this file at ~/.openclaw/plugins-install.txt
+# The Docker entrypoint will install these plugins at container startup.
+#
+# Format: One plugin source per line
+# - ./extensions/plugin-name   : Local extension (relative to repo root)
+# - npm:package-name@version   : npm package
+# - gh:owner/repo              : GitHub repository
+#
+# Lines starting with # are comments
+# Empty lines are ignored
+
+# Example plugins (uncomment to install):
+# ./extensions/memory-lancedb
+# ./extensions/telegram
+# npm:my-custom-plugin@1.0.0
+# gh:myorg/my-plugin

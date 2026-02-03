@@ -1,0 +1,117 @@
+# Extended Dockerfile with skill dependencies for Docker deployment
+# Use this when you need skills that require external binaries (ffmpeg, gh, etc.)
+#
+# Build: docker build -f Dockerfile.skills -t openclaw:skills .
+# Run:   docker compose -f docker-compose.yml -f docker-compose.skills.yml up -d
+
+FROM node:22-bookworm
+
+# Install Bun (required for build scripts)
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
+
+RUN corepack enable
+
+WORKDIR /app
+
+# ============================================
+# SKILL DEPENDENCIES (apt packages)
+# ============================================
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    # Core utilities
+    curl \
+    git \
+    jq \
+    unzip \
+    ca-certificates \
+    # Skills: video-frames
+    ffmpeg \
+    # Skills: github
+    gh \
+    # Skills: session-logs
+    ripgrep \
+    # Skills: tmux
+    tmux \
+    # Skills: Python-based (nano-banana-pro, local-places, openai-image-gen)
+    python3 \
+    python3-pip \
+    python3-venv \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# PYTHON TOOLS (uv for nano-banana-pro, local-places)
+# ============================================
+RUN pip3 install --break-system-packages uv
+
+# ============================================
+# GO TOOLS (optional - uncomment if needed for food-order skill)
+# Adds ~500MB to image size
+# ============================================
+# RUN apt-get update && apt-get install -y golang && apt-get clean && rm -rf /var/lib/apt/lists/*
+# ENV PATH="/root/go/bin:${PATH}"
+# RUN go install github.com/steipete/ordercli/cmd/ordercli@latest
+
+# ============================================
+# BUILD OPENCLAW
+# ============================================
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY ui/package.json ./ui/package.json
+COPY patches ./patches
+COPY scripts ./scripts
+
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN OPENCLAW_A2UI_SKIP_MISSING=1 pnpm build
+# Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
+ENV OPENCLAW_PREFER_PNPM=1
+RUN pnpm ui:build
+
+ENV NODE_ENV=production
+
+# Create extensions directory for plugins
+RUN mkdir -p /home/node/.openclaw/extensions
+
+# Allow non-root user to write temp files during runtime
+RUN chown -R node:node /app /home/node/.openclaw
+
+# Copy entrypoint script
+COPY docker/entrypoint.sh /app/docker/entrypoint.sh
+RUN chmod +x /app/docker/entrypoint.sh
+
+# ============================================
+# BUNDLED PLUGINS (build-time installation)
+# Install commonly used plugins at build time for faster startup
+# ============================================
+# Memory plugin (LanceDB for vector search)
+RUN node dist/index.js plugins install ./extensions/memory-lancedb || echo "Warning: memory-lancedb install failed"
+
+# Channel plugins (install all, users enable via config)
+RUN node dist/index.js plugins install ./extensions/telegram || true && \
+    node dist/index.js plugins install ./extensions/discord || true && \
+    node dist/index.js plugins install ./extensions/slack || true && \
+    node dist/index.js plugins install ./extensions/signal || true && \
+    node dist/index.js plugins install ./extensions/matrix || true && \
+    node dist/index.js plugins install ./extensions/whatsapp || true && \
+    node dist/index.js plugins install ./extensions/msteams || true && \
+    node dist/index.js plugins install ./extensions/googlechat || true && \
+    node dist/index.js plugins install ./extensions/mattermost || true && \
+    node dist/index.js plugins install ./extensions/nextcloud-talk || true && \
+    node dist/index.js plugins install ./extensions/nostr || true && \
+    node dist/index.js plugins install ./extensions/line || true && \
+    node dist/index.js plugins install ./extensions/tlon || true && \
+    node dist/index.js plugins install ./extensions/twitch || true && \
+    node dist/index.js plugins install ./extensions/zalo || true && \
+    node dist/index.js plugins install ./extensions/zalouser || true && \
+    node dist/index.js plugins install ./extensions/bluebubbles || true && \
+    node dist/index.js plugins install ./extensions/imessage || true
+
+# Security: Run as non-root
+USER node
+
+# Use entrypoint for runtime plugin installation
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
+
+# Start gateway server with default config
+CMD ["node", "dist/index.js", "gateway", "--allow-unconfigured"]
