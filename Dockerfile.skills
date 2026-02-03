@@ -88,6 +88,7 @@ RUN chmod +x /app/docker/entrypoint.sh
 RUN node dist/index.js plugins install ./extensions/memory-lancedb || echo "Warning: memory-lancedb install failed"
 
 # Channel plugins (install all, users enable via config)
+# Note: macOS-only plugins (imessage, bluebubbles) are excluded
 RUN node dist/index.js plugins install ./extensions/telegram || true && \
     node dist/index.js plugins install ./extensions/discord || true && \
     node dist/index.js plugins install ./extensions/slack || true && \
@@ -103,9 +104,7 @@ RUN node dist/index.js plugins install ./extensions/telegram || true && \
     node dist/index.js plugins install ./extensions/tlon || true && \
     node dist/index.js plugins install ./extensions/twitch || true && \
     node dist/index.js plugins install ./extensions/zalo || true && \
-    node dist/index.js plugins install ./extensions/zalouser || true && \
-    node dist/index.js plugins install ./extensions/bluebubbles || true && \
-    node dist/index.js plugins install ./extensions/imessage || true
+    node dist/index.js plugins install ./extensions/zalouser || true
 
 # Security: Run as non-root
 USER node
