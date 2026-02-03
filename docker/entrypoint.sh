@@ -94,6 +94,40 @@ fi
 export SKILLS_INSTALL_PREFER_BREW="${SKILLS_INSTALL_PREFER_BREW:-false}"
 
 # ============================================
+# DESCOPE OAUTH TOKEN FOR MCP SERVERS
+# ============================================
+# Fetch Descope OAuth token for MCP servers that require it.
+# This handles headless Docker environments where browser-based OAuth fails.
+#
+if [ -n "$DESCOPE_CLIENT_ID" ] && [ -n "$DESCOPE_CLIENT_SECRET" ] && [ -n "$DESCOPE_TOKEN_URL" ]; then
+    echo "[entrypoint] Fetching Descope OAuth token for MCP servers..."
+
+    TOKEN_RESPONSE=$(curl -s -X POST "$DESCOPE_TOKEN_URL" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d "grant_type=client_credentials" \
+        -d "client_id=$DESCOPE_CLIENT_ID" \
+        -d "client_secret=$DESCOPE_CLIENT_SECRET")
+
+    ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token // empty')
+
+    if [ -n "$ACCESS_TOKEN" ]; then
+        echo "[entrypoint] Successfully obtained Descope access token"
+
+        # Store token in mcporter cache for prod-reddit-research-mcp
+        mkdir -p /home/node/.mcporter/prod-reddit-research-mcp
+        echo "{\"access_token\": \"$ACCESS_TOKEN\", \"token_type\": \"Bearer\"}" > /home/node/.mcporter/prod-reddit-research-mcp/token.json
+        chown -R node:node /home/node/.mcporter
+
+        # Export as env var for use in mcporter config
+        export REDDIT_MCP_ACCESS_TOKEN="$ACCESS_TOKEN"
+        echo "[entrypoint] Token exported as REDDIT_MCP_ACCESS_TOKEN"
+    else
+        echo "[entrypoint] Warning: Failed to obtain Descope token"
+        echo "[entrypoint] Response: $TOKEN_RESPONSE"
+    fi
+fi
+
+# ============================================
 # EXECUTE MAIN COMMAND
 # ============================================
 exec "$@"

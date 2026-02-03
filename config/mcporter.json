@@ -6,7 +6,7 @@
     "prod-reddit-research-mcp": {
       "baseUrl": "https://reddit-research-mcp.fastmcp.app/mcp",
       "headers": {
-        "Authorization": "Bearer ${REDDIT_MCP_USER_TOKEN}",
+        "Authorization": "Bearer ${REDDIT_MCP_ACCESS_TOKEN}",
         "Accept": "application/json, text/event-stream"
       }
     },
