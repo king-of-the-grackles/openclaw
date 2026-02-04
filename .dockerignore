@@ -1,4 +1,6 @@
 .git
+.github/
+.vscode/
 .worktrees
 .bun-cache
 .bun

@@ -4,6 +4,42 @@
 set -e
 
 # ============================================
+# BUNDLED PLUGIN INSTALLATION (first boot only)
+# ============================================
+# Plugins listed in plugins-install-bundled.txt are installed on first boot.
+# A marker file on persistent disk ensures this runs only once, not on every
+# container restart. Subsequent deploys with a new image will re-run because
+# the marker lives on the data disk (survives restarts, not full wipes).
+#
+BUNDLED_PLUGINS="/app/docker/plugins-install-bundled.txt"
+BUNDLED_MARKER="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}/.bundled-plugins-installed"
+
+if [ -f "$BUNDLED_PLUGINS" ] && [ ! -f "$BUNDLED_MARKER" ]; then
+  echo "[entrypoint] Installing bundled plugins (first boot)..."
+  while IFS= read -r plugin || [ -n "$plugin" ]; do
+    # Trim whitespace
+    plugin=$(echo "$plugin" | xargs)
+
+    # Skip empty lines and comments
+    [[ -z "$plugin" || "$plugin" == \#* ]] && continue
+
+    # Extract plugin name for existence check
+    plugin_name="${plugin##*/}"
+
+    # Check if already installed
+    if [ -d "/home/node/.openclaw/extensions/${plugin_name}" ]; then
+      echo "[entrypoint] Already installed: $plugin_name"
+      continue
+    fi
+
+    echo "[entrypoint] Installing: $plugin_name"
+    node /app/dist/index.js plugins install "$plugin" || echo "[entrypoint] Warning: $plugin_name failed"
+  done < "$BUNDLED_PLUGINS"
+  touch "$BUNDLED_MARKER"
+  echo "[entrypoint] Bundled plugin installation complete."
+fi
+
+# ============================================
 # RUNTIME PLUGIN INSTALLATION
 # ============================================
 # Install plugins listed in plugins-install.txt at container startup.
@@ -125,6 +161,40 @@ if [ -n "$DESCOPE_CLIENT_ID" ] && [ -n "$DESCOPE_CLIENT_SECRET" ] && [ -n "$DESC
         echo "[entrypoint] Warning: Failed to obtain Descope token"
         echo "[entrypoint] Response: $TOKEN_RESPONSE"
     fi
+fi
+
+# ============================================
+# TAILSCALE (private tailnet access)
+# ============================================
+# Start tailscaled in userspace mode (no root needed) if TS_AUTHKEY is set.
+# State is persisted on the data disk to survive redeploys.
+# Uses default socket path (/var/run/tailscale/tailscaled.sock) so OpenClaw's
+# tailscale CLI calls work without --socket.
+#
+if [ -n "$TS_AUTHKEY" ]; then
+  echo "[entrypoint] Starting Tailscale daemon (userspace networking)..."
+  TAILSCALE_STATE_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}/tailscale"
+  mkdir -p "$TAILSCALE_STATE_DIR"
+
+  tailscaled \
+    --tun=userspace-networking \
+    --state="$TAILSCALE_STATE_DIR/tailscaled.state" \
+    --no-logs-no-support \
+    &
+
+  # Wait for daemon socket to appear
+  for i in $(seq 1 10); do
+    [ -S /var/run/tailscale/tailscaled.sock ] && break
+    sleep 1
+  done
+
+  echo "[entrypoint] Authenticating with Tailscale..."
+  tailscale up \
+    --authkey="$TS_AUTHKEY" \
+    --hostname="${TS_HOSTNAME:-openclaw-render}"
+
+  echo "[entrypoint] Tailscale connected:"
+  tailscale status
 fi
 
 # ============================================

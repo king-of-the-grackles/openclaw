@@ -1,0 +1,23 @@
+# Bundled plugins installed on first boot (not at build time).
+# The entrypoint installs these once and writes a marker file so
+# subsequent container restarts skip the install.
+#
+# Format: one plugin path per line (same as plugins install argument)
+# Lines starting with # are comments; blank lines are ignored.
+
+# Memory
+./extensions/memory-core
+./extensions/memory-lancedb
+
+# Channels (only active ones)
+./extensions/telegram
+./extensions/bluebubbles
+
+# Auth helpers
+./extensions/google-gemini-cli-auth
+
+# Utilities
+./extensions/lobster
+./extensions/llm-task
+./extensions/open-prose
+./extensions/diagnostics-otel
