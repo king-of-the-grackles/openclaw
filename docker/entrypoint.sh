@@ -111,6 +111,9 @@ if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ ! -f "$CONFIG_FILE" ]; then
     },
     "auth": {
       "allowTailscale": true
+    },
+    "controlUi": {
+      "allowInsecureAuth": true
     }
   },
   "channels": {

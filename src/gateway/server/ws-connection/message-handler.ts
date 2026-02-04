@@ -428,8 +428,9 @@ export function attachGatewayWsMessageHandler(params: {
             })
           : null;
         const sharedAuthOk =
-          sharedAuthResult?.ok === true &&
-          (sharedAuthResult.method === "token" || sharedAuthResult.method === "password");
+          authResult.sharedSecretAlsoValid === true ||
+          (sharedAuthResult?.ok === true &&
+            (sharedAuthResult.method === "token" || sharedAuthResult.method === "password"));
         const rejectUnauthorized = () => {
           setHandshakeState("failed");
           logWsControl.warn(

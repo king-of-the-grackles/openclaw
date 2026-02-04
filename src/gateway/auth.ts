@@ -17,6 +17,8 @@ export type GatewayAuthResult = {
   method?: "token" | "password" | "tailscale" | "device-token";
   user?: string;
   reason?: string;
+  /** When Tailscale identity auth succeeded, indicates whether a valid shared secret (token/password) was also provided. */
+  sharedSecretAlsoValid?: boolean;
 };
 
 type ConnectAuth = {
@@ -252,10 +254,19 @@ export async function authorizeGatewayConnect(params: {
       tailscaleWhois,
     });
     if (tailscaleCheck.ok) {
+      // Also check whether a valid shared secret (token/password) was provided
+      // so callers can determine if both auth methods are satisfied.
+      let sharedSecretAlsoValid = false;
+      if (auth.mode === "token" && auth.token && connectAuth?.token) {
+        sharedSecretAlsoValid = safeEqual(connectAuth.token, auth.token);
+      } else if (auth.mode === "password" && auth.password && connectAuth?.password) {
+        sharedSecretAlsoValid = safeEqual(connectAuth.password, auth.password);
+      }
       return {
         ok: true,
         method: "tailscale",
         user: tailscaleCheck.user.login,
+        sharedSecretAlsoValid,
       };
     }
   }
