@@ -104,7 +104,14 @@ if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ ! -f "$CONFIG_FILE" ]; then
   cat > "$CONFIG_FILE" << EOF
 {
   "gateway": {
-    "mode": "local"
+    "mode": "local",
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "auth": {
+      "allowTailscale": true
+    }
   },
   "channels": {
     "telegram": {
@@ -195,6 +202,14 @@ if [ -n "$TS_AUTHKEY" ]; then
 
   echo "[entrypoint] Tailscale connected:"
   tailscale status
+
+  # Configure Tailscale Serve to proxy HTTPS to the local gateway.
+  # Done manually here (not via gateway.tailscale.mode=serve) because
+  # the gateway uses --bind lan for Render health checks, but OpenClaw's
+  # built-in Tailscale Serve management requires --bind loopback.
+  GATEWAY_PORT="${PORT:-8080}"
+  tailscale serve --bg --https=443 "http://localhost:${GATEWAY_PORT}"
+  echo "[entrypoint] Tailscale Serve: https://${TS_HOSTNAME:-openclaw-render}.<tailnet>.ts.net → localhost:${GATEWAY_PORT}"
 fi
 
 # ============================================
