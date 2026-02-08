@@ -13,6 +13,7 @@
 **File**: `docker/entrypoint.sh` (lines 115-117)
 
 **Problem Identified**:
+
 ```json
 // OLD CODE (INSECURE)
 "controlUi": {
@@ -21,12 +22,14 @@
 ```
 
 **Impact**:
+
 - Weakened Control UI security for ALL Docker/Render deployments
 - Bypassed device identity verification
 - Allowed token-only auth without device pairing
 - Inconsistent with OpenClaw security docs ("security downgrade")
 
 **Fix Applied**:
+
 ```json
 // NEW CODE (SECURE BY DEFAULT)
 "auth": {
@@ -36,6 +39,7 @@
 ```
 
 **Result**:
+
 - ✅ Secure by default for all new Render deployments
 - ✅ Device identity verification required (when using Tailscale Serve)
 - ✅ Users who need insecure auth must enable explicitly
@@ -50,11 +54,13 @@
 **Commit**: `f33a58ed2` - "Auth: don't short-circuit token check on Tailscale identity auth"
 
 **The Paradox**:
+
 - The auth.ts changes themselves were good (defense-in-depth: check both Tailscale identity AND token)
 - However, the entrypoint template added `allowInsecureAuth: true` by default
 - This undermined the defense by allowing token-only fallback
 
 **Security Concern**:
+
 > "If you enable `gateway.controlUi.allowInsecureAuth`, the UI falls back to **token-only auth** and skips device pairing when device identity is omitted. This is a **security downgrade**—prefer HTTPS (Tailscale Serve) or open the UI on `127.0.0.1`."
 > — OpenClaw Security Documentation
 
@@ -114,14 +120,14 @@
 
 ### What's Protected
 
-| Asset | Protection Mechanism | Status |
-|-------|---------------------|--------|
-| **Telegram Bot Token** | Render secrets manager (encrypted) | ✅ Secure |
-| **Gateway Token** | Auto-generated + Render secrets | ✅ Secure |
-| **Control UI Access** | Token auth + Device identity (fixed) | ✅ Secure |
-| **Persistent Data** | Encrypted volume, isolated to service | ✅ Secure |
-| **Container Runtime** | Non-root user (node:node) | ✅ Secure |
-| **Network Exposure** | Gateway on 0.0.0.0 (required for health checks) | ✅ Mitigated by token auth + Tailscale |
+| Asset                  | Protection Mechanism                            | Status                                 |
+| ---------------------- | ----------------------------------------------- | -------------------------------------- |
+| **Telegram Bot Token** | Render secrets manager (encrypted)              | ✅ Secure                              |
+| **Gateway Token**      | Auto-generated + Render secrets                 | ✅ Secure                              |
+| **Control UI Access**  | Token auth + Device identity (fixed)            | ✅ Secure                              |
+| **Persistent Data**    | Encrypted volume, isolated to service           | ✅ Secure                              |
+| **Container Runtime**  | Non-root user (node:node)                       | ✅ Secure                              |
+| **Network Exposure**   | Gateway on 0.0.0.0 (required for health checks) | ✅ Mitigated by token auth + Tailscale |
 
 ---
 
@@ -150,16 +156,17 @@
 ```yaml
 envVars:
   - key: OPENCLAW_GATEWAY_TOKEN
-    generateValue: true  # ✅ Auto-generated strong token
+    generateValue: true # ✅ Auto-generated strong token
   - key: TELEGRAM_BOT_TOKEN
-    sync: false          # ✅ Dashboard-managed secret
+    sync: false # ✅ Dashboard-managed secret
   - key: TELEGRAM_ALLOWFROM
-    sync: false          # ✅ Dashboard-managed
+    sync: false # ✅ Dashboard-managed
 ```
 
 ### 3. Security Documentation Created
 
 ✅ **SECURITY_RENDER_DEPLOYMENT.md** - Complete Render deployment guide
+
 - Step-by-step secure deployment instructions
 - Credential rotation procedures
 - Troubleshooting guide
@@ -256,11 +263,13 @@ curl -X POST https://<your-service>.onrender.com/health
 ### Before Fix (VULNERABLE)
 
 **Attack Surface**:
+
 - ❌ `allowInsecureAuth: true` enabled by default
 - ❌ Gateway token only protection (single factor)
 - ❌ If token leaks → Unauthorized access
 
 **Attack Scenario**:
+
 1. Attacker gains Tailscale access (e.g., compromised tailnet member)
 2. Gateway token leaks (logs, environment dump)
 3. Attacker connects with token only (no device pairing)
@@ -269,11 +278,13 @@ curl -X POST https://<your-service>.onrender.com/health
 ### After Fix (SECURE)
 
 **Attack Surface**:
+
 - ✅ `allowInsecureAuth` removed (device identity required)
 - ✅ Gateway token + device pairing (dual factor)
 - ✅ If token leaks → Still requires device compromise
 
 **Attack Scenario**:
+
 1. Attacker gains Tailscale access
 2. Gateway token leaks
 3. Attacker attempts connection
@@ -290,6 +301,7 @@ curl -X POST https://<your-service>.onrender.com/health
 **Risk**: `/health` endpoint is publicly accessible (no auth required)
 
 **Mitigation**:
+
 - Endpoint is read-only (only confirms gateway is responsive)
 - Required for Render health checks (cannot be removed)
 - Does not expose sensitive data
@@ -301,6 +313,7 @@ curl -X POST https://<your-service>.onrender.com/health
 **Risk**: If Render volume is deleted, all data lost
 
 **Mitigation**:
+
 - Regular backups via Render shell
 - Export critical data to external storage
 - Document backup/restore procedures
@@ -312,6 +325,7 @@ curl -X POST https://<your-service>.onrender.com/health
 **Risk**: If entire Tailscale tailnet is compromised, attackers gain network access
 
 **Mitigation**:
+
 - Use Tailscale ACLs to restrict access
 - Enable MFA on Tailscale account
 - Regular audit of tailnet members
@@ -330,6 +344,7 @@ curl -X POST https://<your-service>.onrender.com/health
    - Monitor resource usage trends
 
 2. **Rotate Gateway Token**:
+
    ```bash
    # Render Dashboard → Environment → OPENCLAW_GATEWAY_TOKEN
    # Click "Generate New Value" → Save
@@ -342,12 +357,14 @@ curl -X POST https://<your-service>.onrender.com/health
 ### Quarterly Tasks
 
 1. **Rotate Telegram Bot Token**:
+
    ```bash
    # BotFather → Revoke current token
    # Update TELEGRAM_BOT_TOKEN in Render dashboard
    ```
 
 2. **Rotate Tailscale Auth Key**:
+
    ```bash
    # Tailscale Admin Console → Revoke old key
    # Generate new key → Update TS_AUTHKEY
@@ -410,6 +427,7 @@ git push origin fix/docker-remove-insecure-auth-default
 ```
 
 **PR Checklist**:
+
 - [ ] Test Docker deployment without `allowInsecureAuth`
 - [ ] Verify Tailscale Serve works with device identity
 - [ ] Confirm Control UI requires device pairing
@@ -451,10 +469,10 @@ git push origin fix/docker-remove-insecure-auth-default
 
 ### Security Improvements
 
-| Before | After |
-|--------|-------|
-| 🔴 Token-only auth allowed | ✅ Device identity required |
-| 🔴 Insecure by default | ✅ Secure by default |
+| Before                      | After                           |
+| --------------------------- | ------------------------------- |
+| 🔴 Token-only auth allowed  | ✅ Device identity required     |
+| 🔴 Insecure by default      | ✅ Secure by default            |
 | 🔴 Single-factor protection | ✅ Dual-factor (token + device) |
 
 ### Impact

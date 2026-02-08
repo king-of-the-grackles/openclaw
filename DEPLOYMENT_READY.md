@@ -34,6 +34,7 @@ Your OpenClaw repository is now hardened and ready for secure Render Cloud deplo
 ```
 
 **Impact**:
+
 - All new Render deployments are now secure by default
 - Device identity verification required (when using Tailscale)
 - Token-only auth no longer allowed by default
@@ -83,12 +84,12 @@ Follow these steps in order:
 3. Render auto-detects `render.yaml`
 4. Before deploying, add environment variables:
 
-| Variable | Value | Secret? |
-|----------|-------|---------|
-| `TELEGRAM_BOT_TOKEN` | `<your-new-token>` | ✅ Yes |
-| `TELEGRAM_ALLOWFROM` | `5177091981` | No |
-| `SETUP_PASSWORD` | `<strong-password>` | ✅ Yes |
-| `TS_AUTHKEY` | `tskey-auth-...` | ✅ Yes (optional) |
+| Variable             | Value               | Secret?           |
+| -------------------- | ------------------- | ----------------- |
+| `TELEGRAM_BOT_TOKEN` | `<your-new-token>`  | ✅ Yes            |
+| `TELEGRAM_ALLOWFROM` | `5177091981`        | No                |
+| `SETUP_PASSWORD`     | `<strong-password>` | ✅ Yes            |
+| `TS_AUTHKEY`         | `tskey-auth-...`    | ✅ Yes (optional) |
 
 **Note**: `OPENCLAW_GATEWAY_TOKEN` is auto-generated (don't set manually)
 
@@ -118,15 +119,18 @@ For HTTPS access with device identity verification:
 ### Step 5: Verify Security (5 min)
 
 **Test Telegram Bot**:
+
 - Send message from allowed user → ✅ Bot responds
 - Send from different user → ❌ Silently rejected
 
 **Test Gateway** (if Tailscale enabled):
+
 - Open `https://<hostname>.ts.net`
 - First visit: Device pairing prompt
 - Subsequent visits: Direct access
 
 **Check Logs**:
+
 - Render Dashboard → Logs tab
 - Verify: `Security settings: dmPolicy=allowlist, groupPolicy=disabled`
 
@@ -217,6 +221,7 @@ render logs <service-name> --tail
 ```
 
 **Expected log output**:
+
 ```
 ✅ [entrypoint] Security settings: dmPolicy=allowlist, groupPolicy=disabled
 ✅ [INFO] Tailscale Serve: https://<hostname>.ts.net → localhost:8080
@@ -272,6 +277,7 @@ tar -czf /tmp/backup-$(date +%Y%m%d).tar.gz /data/.openclaw
 ### Bot Not Responding
 
 **Check**:
+
 1. `TELEGRAM_BOT_TOKEN` set correctly in Render dashboard
 2. `TELEGRAM_ALLOWFROM` contains your user ID
 3. Render logs show "Telegram bot started"
@@ -281,10 +287,12 @@ tar -czf /tmp/backup-$(date +%Y%m%d).tar.gz /data/.openclaw
 ### Can't Access Gateway
 
 **Without Tailscale**:
+
 - Gateway only accessible via health check endpoint
 - **Solution**: Add `TS_AUTHKEY` environment variable
 
 **With Tailscale**:
+
 1. Check logs for "Tailscale Serve" confirmation
 2. Verify auth key is valid (not expired)
 3. Check Tailscale admin console for device status
@@ -292,6 +300,7 @@ tar -czf /tmp/backup-$(date +%Y%m%d).tar.gz /data/.openclaw
 ### Health Check Failing
 
 **Check**:
+
 1. Render logs for startup errors
 2. `PORT=8080` environment variable set
 3. Persistent disk mounted at `/data`
@@ -336,6 +345,7 @@ This deployment implements security best practices:
 **Commit**: `b129d24ec`
 **Message**: "Docker: remove allowInsecureAuth from default entrypoint template"
 **Files Changed**:
+
 - `docker/entrypoint.sh` (security fix)
 - `SECURITY_RENDER_DEPLOYMENT.md` (deployment guide)
 - `SECURITY_FIX_SUMMARY.md` (implementation details)

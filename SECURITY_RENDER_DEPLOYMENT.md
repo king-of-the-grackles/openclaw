@@ -53,14 +53,15 @@ This guide deploys OpenClaw securely to Render Cloud with proper credential mana
 
 Before first deploy, go to **Environment** tab and add:
 
-| Variable Name | Value | Mark as Secret? | Notes |
-|---------------|-------|-----------------|-------|
-| `TELEGRAM_BOT_TOKEN` | `<paste-token-from-step-1>` | ✅ Yes | **Required** - Rotated token |
-| `TELEGRAM_ALLOWFROM` | `5177091981` | ❌ No | Your Telegram user ID(s) |
-| `SETUP_PASSWORD` | `<strong-password>` | ✅ Yes | **Required** - For initial setup |
-| `TS_AUTHKEY` | `tskey-auth-...` | ✅ Yes | **Optional** - See Step 3 |
+| Variable Name        | Value                       | Mark as Secret? | Notes                            |
+| -------------------- | --------------------------- | --------------- | -------------------------------- |
+| `TELEGRAM_BOT_TOKEN` | `<paste-token-from-step-1>` | ✅ Yes          | **Required** - Rotated token     |
+| `TELEGRAM_ALLOWFROM` | `5177091981`                | ❌ No           | Your Telegram user ID(s)         |
+| `SETUP_PASSWORD`     | `<strong-password>`         | ✅ Yes          | **Required** - For initial setup |
+| `TS_AUTHKEY`         | `tskey-auth-...`            | ✅ Yes          | **Optional** - See Step 3        |
 
 **Auto-Generated Variables** (already in render.yaml):
+
 - ✅ `PORT=8080` (health check port)
 - ✅ `OPENCLAW_GATEWAY_TOKEN` (auto-generated, don't set manually)
 - ✅ `OPENCLAW_STATE_DIR=/data/.openclaw` (persistent volume)
@@ -68,6 +69,7 @@ Before first deploy, go to **Environment** tab and add:
 ### Multiple Allowed Users
 
 To allow multiple Telegram users, use comma-separated IDs:
+
 ```
 TELEGRAM_ALLOWFROM=5177091981,123456789,987654321
 ```
@@ -127,6 +129,7 @@ TELEGRAM_ALLOWFROM=5177091981,123456789,987654321
 4. **Expected**: Silently rejected ❌ (check Render logs)
 
 **Render Logs** should show:
+
 ```log
 ✅ Message received from user 5177091981 (allowed)
 ⚠️  Rejected DM from unauthorized user: 123456789
@@ -135,10 +138,12 @@ TELEGRAM_ALLOWFROM=5177091981,123456789,987654321
 ### Test 2: Gateway Access via Tailscale
 
 **Find your Tailscale hostname**:
+
 - Render Logs → Search for "Tailscale Serve"
 - Or [Tailscale Admin Console](https://login.tailscale.com/admin/machines) → Find "openclaw-render"
 
 **Access Control UI**:
+
 1. Open browser: `https://<hostname>.ts.net`
 2. **First visit**: Device pairing prompt (Tailscale provides device identity)
 3. **Subsequent visits**: Direct access (device remembered)
@@ -232,10 +237,12 @@ After Step 5, verify:
 ### View Live Logs
 
 **Via Render Dashboard**:
+
 - Dashboard → Your service → **Logs** tab
 - Real-time streaming, searchable
 
 **Via Render CLI** (if installed):
+
 ```bash
 render logs <service-name> --tail
 ```
@@ -243,25 +250,30 @@ render logs <service-name> --tail
 ### Restart Service
 
 **Manual restart**:
+
 - Dashboard → Your service → **Manual Deploy** → "Deploy latest commit"
 
 **Auto-restart on health check failure**:
+
 - Render automatically restarts if health checks fail 3+ times
 
 ### Rotate Credentials
 
 **Telegram Bot Token**:
+
 1. BotFather → Revoke current token
 2. Copy new token
 3. Render Dashboard → Environment → `TELEGRAM_BOT_TOKEN` → Update value
 4. Save → Triggers automatic redeploy
 
 **Gateway Token**:
+
 1. Render Dashboard → Environment → `OPENCLAW_GATEWAY_TOKEN`
 2. Click "Generate New Value"
 3. Save → Triggers automatic redeploy
 
 **Tailscale Auth Key**:
+
 1. [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys) → Revoke old key
 2. Generate new key (same settings as Step 3)
 3. Render Dashboard → Environment → `TS_AUTHKEY` → Update value
@@ -277,6 +289,7 @@ render logs <service-name> --tail
 ### Backup Persistent Volume
 
 **Via Render Shell** (Dashboard → Shell tab):
+
 ```bash
 # Create timestamped backup
 tar -czf /tmp/openclaw-backup-$(date +%Y%m%d-%H%M%S).tar.gz \
@@ -297,17 +310,20 @@ cat /tmp/openclaw-backup-*.tar.gz | base64
 ### Bot Not Responding
 
 **Check logs**:
+
 ```bash
 # Render Dashboard → Logs tab → Search for "telegram"
 ```
 
 **Expected log messages**:
+
 ```log
 ✅ [INFO] Telegram bot started, dmPolicy=allowlist
 ✅ [INFO] Connected to Telegram API
 ```
 
 **Common issues**:
+
 - ❌ `TELEGRAM_BOT_TOKEN` not set → Add in Environment tab
 - ❌ `TELEGRAM_ALLOWFROM` missing/incorrect → Verify your user ID
 - ❌ Old token still in use → Verify new token in Render dashboard
@@ -315,11 +331,13 @@ cat /tmp/openclaw-backup-*.tar.gz | base64
 ### Can't Access Gateway
 
 **Without Tailscale**:
+
 - Gateway is only accessible via health check endpoint (`/health`)
 - Control UI not accessible without Tailscale
 - **Solution**: Add `TS_AUTHKEY` environment variable (Step 3)
 
 **With Tailscale**:
+
 1. Check logs for "Tailscale Serve" confirmation
 2. Verify auth key is valid (not expired/revoked)
 3. Check [Tailscale Machines](https://login.tailscale.com/admin/machines) for device status
@@ -328,17 +346,20 @@ cat /tmp/openclaw-backup-*.tar.gz | base64
 ### Health Check Failing
 
 **Check Render logs**:
+
 ```bash
 # Look for startup errors
 [ERROR] Gateway failed to start: ...
 ```
 
 **Common issues**:
+
 - ❌ `PORT` not set to `8080` → Verify in render.yaml
 - ❌ Persistent disk not mounted → Check render.yaml disk config
 - ❌ Environment variables missing → Verify required vars in Environment tab
 
 **Verify health endpoint**:
+
 ```bash
 curl -X POST https://<your-service>.onrender.com/health
 # Expected: 200 OK
@@ -347,11 +368,13 @@ curl -X POST https://<your-service>.onrender.com/health
 ### Deployment Fails
 
 **Build logs show errors**:
+
 - Check Dockerfile.skills syntax
 - Verify bundled plugins list (docker/plugins-install-bundled.txt)
 - Check for missing dependencies
 
 **Deployment timeout**:
+
 - First deploy takes longer (bundled plugin installation)
 - Check Render plan limits (free tier has build time limits)
 
@@ -369,10 +392,12 @@ curl -X POST https://<your-service>.onrender.com/health
 ### Monitoring
 
 **Set up Render alerts**:
+
 - Dashboard → Your service → Settings → Notifications
 - Enable alerts for: Deploy failures, health check failures, high memory usage
 
 **Key metrics to watch**:
+
 - Health check success rate (should be >99%)
 - Response time (should be <500ms)
 - Memory usage (should stay under 80%)
@@ -381,11 +406,13 @@ curl -X POST https://<your-service>.onrender.com/health
 ### Backup Strategy
 
 **What to backup**:
+
 - `/data/.openclaw/openclaw.json` (gateway config)
 - `/data/.openclaw/credentials/` (WhatsApp credentials, if used)
 - `/data/.openclaw/agents/` (agent configs, session history)
 
 **Backup frequency**:
+
 - **Daily**: If actively using (automate via cron)
 - **Weekly**: For periodic use
 - **Before upgrades**: Always backup before OpenClaw version updates
@@ -460,14 +487,17 @@ autoscaling:
 ## Files Modified in This Hardening
 
 ✅ **docker/entrypoint.sh** (lines 115-117)
+
 - **Before**: `"allowInsecureAuth": true` (insecure default)
 - **After**: Removed (secure by default, device identity required)
 
 ✅ **render.yaml** (already secure)
+
 - All secrets use `sync: false` (dashboard-managed)
 - Gateway token auto-generated (`generateValue: true`)
 
 ✅ **Security Documentation**
+
 - SECURITY_RENDER_DEPLOYMENT.md (this file)
 - Docker entrypoint now secure by default for all users
 
@@ -482,6 +512,7 @@ autoscaling:
 **Issue**: Docker entrypoint set `allowInsecureAuth: true` by default, weakening Control UI security for all Docker/Render deployments.
 
 **Impact**:
+
 - Bypassed device identity verification
 - Allowed token-only auth (no device pairing)
 - Inconsistent with security docs ("security downgrade")
