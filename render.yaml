@@ -5,6 +5,11 @@ services:
     plan: standard
     healthCheckPath: /health
     dockerfilePath: ./Dockerfile.skills
+    openPorts:
+      - port: 8080
+        protocol: TCP
+      - port: 57158
+        protocol: TCP
     envVars:
       - key: PORT
         value: "8080"
@@ -25,6 +30,9 @@ services:
       - key: FIRECRAWL_API_KEY
         sync: false
       - key: POSTHOG_API_KEY
+        sync: false
+      # Claude Max setup-token (set in Render dashboard, NOT in this file)
+      - key: CLAUDE_SETUP_TOKEN
         sync: false
     disk:
       name: openclaw-data

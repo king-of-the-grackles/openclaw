@@ -137,6 +137,30 @@ fi
 export SKILLS_INSTALL_PREFER_BREW="${SKILLS_INSTALL_PREFER_BREW:-false}"
 
 # ============================================
+# CLAUDE SETUP-TOKEN AUTH
+# ============================================
+# If CLAUDE_SETUP_TOKEN is set, apply it as the Anthropic auth credential.
+# This enables Claude Max/Pro subscription auth without exposing the token
+# in CLI history. The token is stored in OpenClaw's auth profiles on the
+# persistent disk. Re-applied on each boot to pick up rotated tokens.
+#
+if [ -n "$CLAUDE_SETUP_TOKEN" ]; then
+  echo "[entrypoint] Applying Claude setup-token..."
+  node /app/dist/index.js onboard \
+    --non-interactive \
+    --accept-risk \
+    --auth-choice setup-token \
+    --token "$CLAUDE_SETUP_TOKEN" \
+    --skip-channels \
+    --skip-skills \
+    --skip-health \
+    --skip-daemon \
+    --skip-ui \
+    && echo "[entrypoint] Claude setup-token applied successfully" \
+    || echo "[entrypoint] Warning: Failed to apply Claude setup-token"
+fi
+
+# ============================================
 # DESCOPE OAUTH TOKEN FOR MCP SERVERS
 # ============================================
 # Fetch Descope OAuth token for MCP servers that require it.
